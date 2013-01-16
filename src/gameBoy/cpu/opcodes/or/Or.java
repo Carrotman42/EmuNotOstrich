@@ -2,46 +2,80 @@ package gameBoy.cpu.opcodes.or;
 
 import gameBoy.cpu.Flag;
 import gameBoy.cpu.Register;
-import gameBoy.cpu.opcodes.OneByteOpcode;
+import gameBoy.interfaces.IOpcode2;
 import gameBoy.interfaces.IProcessor;
+import gameBoy.interfaces.IRegister;
 
-public class Or extends OneByteOpcode {
-	private static int cycles = 4;
-	private Register register;
-	private IProcessor processor;
+public enum Or implements IOpcode2 {
+    // These names exclude the Or name because enums should be fully qualified anyway
+    A(Register.A), B(Register.B), C(Register.C),
+    D(Register.D), E(Register.E), H(Register.H), L(Register.L),
+    AddrHL(null) {
+        protected int getValForOp(IProcessor proc) {
+            int addr = proc.getRegisters().getRegister( Register.HL );
+            return proc.getMemory().get8BitValue( addr );
+        }
+        
+        public int getCycles() {
+            return 8;
+        }
+    },
+    ImmToA(null) {
+        protected int getValForOp(IProcessor proc) {
+            int addr = proc.getRegisters().getRegister( Register.PC ) + 1;
+            return proc.getMemory().get8BitValue( addr );
+        }
+        
+        public int getCycles() {
+            return 8;
+        }
+    };
+    
+	private final static int CYCLES = 4;
+	private final Register register;
 	
-	protected Or( IProcessor processor, Register register ) {
+	private Or(Register register ) {
 		this.register = register;
-		this.processor = processor;
+	}
+	
+	protected int getValForOp(IProcessor proc) {
+	    return proc.getRegisters().getRegister( register );
 	}
 	
 	@Override
-	public void execute() {
+	public void execute(IProcessor proc) {
+	    IRegister regs = proc.getRegisters();
 		// Or register with A, store in A ( A <- A | r )
-		int A = this.processor.getRegisters().getRegister( Register.A );
-		int n = this.processor.getRegisters().getRegister( register );
+		int A = regs.getRegister( Register.A );
+		int n = getValForOp(proc);
 		
 		int result = A | n;
 		
-		this.doFlagCheck( result );
+		this.doFlagCheck(regs, result );
 		
-		this.processor.getRegisters().setRegister( Register.A, result );
+		regs.setRegister( Register.A, result );
 	}
 
-	protected void doFlagCheck( int result ) {
+	protected void doFlagCheck(IRegister regs, int result ) {
 		if( result == 0 ) {
-			this.processor.getRegisters().setFlagTo( Flag.Z, true );
+		    regs.setFlagTo( Flag.Z, true );
 		} else {
-			this.processor.getRegisters().setFlagTo( Flag.Z, false );
+		    regs.setFlagTo( Flag.Z, false );
 		}
 		
-		this.processor.getRegisters().setFlagTo( Flag.N, false );
-		this.processor.getRegisters().setFlagTo( Flag.H, false );
-		this.processor.getRegisters().setFlagTo( Flag.C, false );
+		regs.setFlagTo( Flag.N, false );
+		regs.setFlagTo( Flag.H, false );
+		regs.setFlagTo( Flag.C, false );
 	}
 	
 	@Override
 	public int getCycles() {
-		return cycles;
+		return CYCLES;
+	}
+	
+	// I wish I could inherit this from a base class, but enums can't have parents (other than Enum) :(
+	@Override
+	public byte getOpcodeLength() {
+	    return 1;
 	}
 }
